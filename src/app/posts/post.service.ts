@@ -117,6 +117,6 @@ export class PostService {
 
   getPostByIdDb(id: string) {
 
-    return this.http.get<{message: string, post: Post}>(`http://localhost:80/api/posts/${id}`);
+    return this.http.get<{message: string, post: Post}>(`http://16.170.239.47:80/api/posts/${id}`);
   }
 }
