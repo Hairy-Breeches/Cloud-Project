@@ -12,7 +12,7 @@ app.use("/", express.static(path.join(__dirname,"angular")));
 
 mongoose
   .connect(
-    "mongodb+srv://Hairy--Breeches:KAQ1nDntHVuiJGy7@cluster0.hbvkq3y.mongodb.net/node-angular?retryWrites=true&w=majority"
+    "mongodb+srv://Hairy--Breeches:JguZ84dtgXQAtzlp@cluster0.hbvkq3y.mongodb.net/cloud-project?retryWrites=true&w=majority"
   )
 
   .then(() => {
