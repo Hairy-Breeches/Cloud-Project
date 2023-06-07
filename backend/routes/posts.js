@@ -1,6 +1,38 @@
 const express = require('express');
 const Post = require("../models/posts");
 const multer = require('multer');
+const s3UploadV2 = require('./s3Service');
+const updateS3File = require('./updatesS3File');
+
+
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+
+//     cb(null, 'backend/images');
+//   },
+//   filename: (req, file, cb) => {
+//     const fileName = file.originalname.toLowerCase().split(' ').join('-');
+//     const ext = MIME_TYPE_MAP[file.mimetype];
+
+//     cb(null, fileName + '-' + Date.now() + '.' + ext);
+
+//   }
+// });
+
+const storage = multer.memoryStorage()
+
+const filter = (req, file, cb) => {
+  const isValid = MIME_TYPE_MAP[file.mimetype]
+  let error = new Error('Invalid mime-type!');
+
+  if(isValid) {
+    error = null;
+  }
+
+  cb(error, isValid)
+}
+
+const upload = multer({storage: storage, fileFilter: filter})
 
 const MIME_TYPE_MAP = {
   'image/png': 'png',
@@ -8,38 +40,22 @@ const MIME_TYPE_MAP = {
   'image/jpg': 'jpg'
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const isValid = MIME_TYPE_MAP[file.mimetype]
-    let error = new Error('Invalid mime-type!');
-
-    if(isValid) {
-      error = null;
-    }
-
-    cb(error, 'backend/images');
-
-  },
-  filename: (req, file, cb) => {
-    const fileName = file.originalname.toLowerCase().split(' ').join('-');
-    const ext = MIME_TYPE_MAP[file.mimetype];
-
-    cb(null, fileName + '-' + Date.now() + '.' + ext);
-
-  }
-});
-
 const router = express.Router();
 
 
-router.post("", multer({storage: storage}).single('image'), (req, res) => {
-  const url = req.protocol + "://" + req.get('host');
+router.post("", upload.single('image'), async (req, res) => {
+  const fileName = req.file.originalname.toLowerCase().split(' ').join('-');
+  const ext = MIME_TYPE_MAP[req.file.mimetype];
+
+  const file = req.file;
+  const result = await s3UploadV2(file, fileName + '-' + Date.now() + '.' + ext)
+
   console.log('host: ', req.get('host'));
 
   const post = new Post({
     title: req.body.title,
     content: req.body.content,
-    imagePath: url + '/images/' + req.file.filename
+    imagePath: result.Location
   });
 
   post.save().then(post => {
@@ -86,13 +102,26 @@ router.delete("/:id", (req, res) => {
   });
 });
 
-router.put("/:id", multer({storage: storage}).single('image'), (req, res) => {
+router.put("/:id", upload.single('image'), async (req, res) => {
   let imagePath = req.body.imagePath;
 
   if(req.file) {
-    const url = req.protocol + "://" + req.get('host');
-    imagePath = url + '/images/' + req.file.filename;
+    const fileName = req.file.originalname.toLowerCase().split(' ').join('-');
+    const ext = MIME_TYPE_MAP[req.file.mimetype];
 
+    const file = req.file;
+    const result = await s3UploadV2(file, fileName + '-' + Date.now() + '.' + ext)
+
+    imagePath = result.Location;
+
+  } else {
+    const imagePath = req.body.imagePath.split('.');
+    const ext = imagePath.at(-1);
+
+    const fileName = req.body.title.toLowerCase().split(' ').join('-');
+
+    console.log(fileName + '-' + Date.now() + '.' + ext)
+    // const result = await updateS3File(fileName + '-' + Date.now() + '.' + ext)
   }
 
   const currentPost = new Post({
